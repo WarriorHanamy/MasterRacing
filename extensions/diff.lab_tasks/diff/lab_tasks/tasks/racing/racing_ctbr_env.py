@@ -41,9 +41,8 @@ STAGE = int(os.environ.get("TRAINING_STAGE", 0)) # 0: pre-training, 1: training,
 
 REPO_ROOT_DIR = Path(__file__).resolve().parents[6]
 LOCAL_ASSETS_DIR = REPO_ROOT_DIR / "assets"
-LOCAL_GROUND_MDL = (LOCAL_ASSETS_DIR / "Ground/Asphalt_Fine.mdl").resolve()
 LOCAL_SKY_HDR = (LOCAL_ASSETS_DIR / "Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr").resolve()
-for required_asset in (LOCAL_GROUND_MDL, LOCAL_SKY_HDR):
+for required_asset in (LOCAL_SKY_HDR,):
     if not required_asset.exists():
         raise FileNotFoundError(f"Missing required asset: {required_asset}")
 
@@ -61,10 +60,11 @@ class SceneCfg(InteractiveSceneCfg):
             static_friction=1.0,
             dynamic_friction=1.0,
         ),
-        visual_material=sim_utils.MdlFileCfg(
-            mdl_path=str(LOCAL_GROUND_MDL),
-            project_uvw=True,
-            texture_scale=(0.25, 0.25),
+        # Use a simple built-in PreviewSurface to avoid MDL shader warnings (e.g., project_uvw on vMaterials).
+        visual_material=sim_utils.PreviewSurfaceCfg(
+            diffuse_color=(0.12, 0.12, 0.12),
+            roughness=0.8,
+            metallic=0.0,
         ),
         debug_vis=False,
         )

@@ -58,6 +58,28 @@ import diff.lab # noqa: F401
 import diff.lab_tasks  # noqa: F401
 from diff.lab.utils import visualize_depth
 
+def _resolve_resume_path(log_root_path, agent_cfg):
+    """Resolve checkpoint path, allowing direct file or custom run directory."""
+    # Direct checkpoint path provided
+    if agent_cfg.load_checkpoint and os.path.isfile(agent_cfg.load_checkpoint):
+        return agent_cfg.load_checkpoint
+
+    # Custom run directory provided (absolute or relative)
+    if agent_cfg.load_run and os.path.isdir(agent_cfg.load_run):
+        run_path = os.path.abspath(agent_cfg.load_run)
+        if agent_cfg.load_checkpoint:
+            candidate = os.path.join(run_path, agent_cfg.load_checkpoint)
+            if os.path.isfile(candidate):
+                return candidate
+        # fallback: pick latest *.pt / *.pth in the provided directory
+        candidates = [f for f in os.listdir(run_path) if f.endswith(".pt") or f.endswith(".pth")]
+        if candidates:
+            candidates.sort(key=lambda m: f"{m:0>15}")
+            return os.path.join(run_path, candidates[-1])
+
+    # Default: use rsl_rl log layout
+    return get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+
 def main():
     """Play with RSL-RL agent."""
     # parse configuration
@@ -70,7 +92,10 @@ def main():
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
-    resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+    if args_cli.use_auxiliary_head:
+        resume_path = _resolve_resume_path(log_root_path, agent_cfg)
+    else:
+        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
     log_dir = os.path.dirname(resume_path)
 
     # create isaac environment

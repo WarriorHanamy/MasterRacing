@@ -1,10 +1,13 @@
 # finetune_policy_head.py
 
-import torch
+import os
+
 import h5py
+import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 # ====== PGD Attack Function ======
@@ -61,7 +64,8 @@ class HeadOnlyPolicy(nn.Module):
 
 # ====== Load Original Policy Model (Customize this part to match your structure) ======
 def load_full_policy_model(path):
-    from standalone.rsl_rl.ext.modules import VisionActorCritic  # Replace with your actual module/class
+    # Import directly from the class module to avoid circular imports via exporter/__init__.py
+    from standalone.rsl_rl.ext.modules.vision_actor_critic import VisionActorCritic
     model = VisionActorCritic(
         num_actor_obs=6928,  # Adjust based on your feature size
         num_critic_obs=6928,  # Adjust based on your action space
@@ -84,6 +88,8 @@ def load_full_policy_model(path):
 def finetune_policy_head(h5_path, policy_path, save_path, epochs=10, batch_size=256, lr=3e-4):
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    os.makedirs(save_path, exist_ok=True)
+    writer = SummaryWriter(log_dir=os.path.join(save_path, "tb"))
     # Dataset
     dataset = FusedFeatureDataset(h5_path)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -98,6 +104,7 @@ def finetune_policy_head(h5_path, policy_path, save_path, epochs=10, batch_size=
 
     # Training loop
     head_model.train()
+    global_step = 0
     for epoch in range(epochs):
         total_loss = 0.0
         pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}")
@@ -111,16 +118,21 @@ def finetune_policy_head(h5_path, policy_path, save_path, epochs=10, batch_size=
             loss.backward()
             optimizer.step()
             total_loss += loss.item() * x.size(0)
+            writer.add_scalar("loss/batch", loss.item(), global_step)
+            global_step += 1
             pbar.set_postfix(loss=loss.item())
 
         avg_loss = total_loss / len(dataset)
+        writer.add_scalar("loss/epoch", avg_loss, epoch)
         print(f"\n🚀 [Epoch {epoch+1}/{epochs}] Loss: {avg_loss:.6f}")
 
         # Save updated full policy
         full_policy.aux_decoder.load_state_dict(head_model.mlp_head.state_dict())
         loaded_dict["model_state_dict"] = full_policy.state_dict()
-        torch.save(loaded_dict, save_path + f"/policy_finetune_epoch-{epoch}.pt")
+        torch.save(loaded_dict, os.path.join(save_path, f"policy_finetune_epoch-{epoch}.pt"))
         print(f"\n✅ Fine-tuned policy saved to: {save_path}")
+
+    writer.close()
 
 
 # ====== Entry Point ======

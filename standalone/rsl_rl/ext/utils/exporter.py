@@ -12,10 +12,17 @@
 # *  Contact: yu-feng@sjtu.edu.cn                                               *
 # *  Description: None                                                          *
 # *******************************************************************************
-import os
-import torch
-from standalone.rsl_rl.ext.modules import VisionActorCritic
+from __future__ import annotations
+
 import copy
+import os
+from typing import TYPE_CHECKING
+
+import torch
+
+if TYPE_CHECKING:
+    from standalone.rsl_rl.ext.modules.vision_actor_critic import VisionActorCritic
+
 def export_vision_policy_as_onnx(
     policy: object,
     path: str,
