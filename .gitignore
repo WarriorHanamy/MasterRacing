@@ -38,3 +38,4 @@ _repo
 _build
 .lastformat
 *.csv
+datasets/*.h5

@@ -47,7 +47,7 @@ export CARB_DISABLE_PYTHON_USDPREVIEW=1
 ```bash
 CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=0 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.train \
   --task DiffLab-Quadcopter-CTBR-Racing-v0 --headless \
-  --num_envs 2048 --experiment_name racing_stage0 --run_name s0
+  --num_envs 2048 --experiment_name racing --run_name s0
 ```
 预计7小时左右。
 
@@ -55,19 +55,21 @@ CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=0 ${ISAACLAB_PATH}/isaaclab.sh -p -m stand
 ```bash
 CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=1 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.train \
   --task DiffLab-Quadcopter-CTBR-Racing-v0 --headless --num_envs 2048 \
-  --experiment_name racing_stage0 --run_name s1 --resume True \
+  --experiment_name racing --run_name s1 --resume True \
   --load_run <stage0_run_dir> --checkpoint <ckpt.pt>
 ```
 举个例子: `--load_run 2025-12-15_17-07-17_s0 --checkpoint model_3999.pt`，预计5小时左右。
 
 ### Stage2 环境下采集离线数据（用 Stage1 ckpt）
 ```sh
-CUDA_VISIBLE_DEVICES=0 TRAINING_STAGE=2 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.offline.data_collector \
-  --task DiffLab-Quadcopter-CTBR-Racing-v0 --num_envs 64 --video_length 400 \
-  --experiment_name racing_stage0 --dataset racing_stage1.h5 \
+CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=2 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.offline.data_collector \
+  --task DiffLab-Quadcopter-CTBR-Racing-v0 --num_envs 2048 --video_length 400 --headless \
+  --experiment_name racing --dataset racing_stage1.h5 \
   --load_run <run_dir> --checkpoint <ckpt.pt>
 ```
-示例：`--load_run 2025-12-16_01-33-08_s1 --checkpoint model_7998.pt`，预计x小时左右，目前在断网服务器上始终不行，因为会默认需要GUI。
+示例：`--load_run 2025-12-16_01-33-08_s1 --checkpoint model_7998.pt`，预计x小时左右。
+
+(TODO：这个功能一直不work) 如果想录视频，启动时改为`--num_envs 1 --video`，并指定`--video_length`；录制会写到日志目录下`<run_dir>/videos/play/`
 
 ### 离线微调辅助头
 ```sh

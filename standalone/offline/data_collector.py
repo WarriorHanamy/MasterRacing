@@ -99,8 +99,12 @@ def main():
     # obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
-    # initialize the data collector
-    h5_file = h5py.File("/data/racing_data/" + args_cli.dataset, "w")
+    # initialize the data collector (save under repo/datasets/<dataset>.h5)
+    dataset_dir = os.path.abspath(os.path.join(os.getcwd(), "datasets"))
+    os.makedirs(dataset_dir, exist_ok=True)
+    dataset_path = os.path.join(dataset_dir, args_cli.dataset)
+    print(f"[INFO] Writing dataset to: {dataset_path}")
+    h5_file = h5py.File(dataset_path, "w")
     N_positive = 1000000
     N_negative = 1000000
     h5_file.create_dataset("features", shape=(N_positive + N_negative, 192), maxshape=(None, 192), dtype="float32")
