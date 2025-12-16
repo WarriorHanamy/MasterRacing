@@ -34,8 +34,6 @@ ISAACLAB_PATH=/workspace/isaaclab ${ISAACLAB_PATH}/isaaclab.sh -p .vscode/tools/
 - **Stage2 评测/导出（TRAINING_STAGE=2）**：与 Stage1 相同碰撞，噪声更大，episode 8s，无姿态惩罚；用于测试与导出。
 
 ## 训练与评测命令（按顺序执行）
-注意stage 0的1024个env就需要近13G显存, 4096个env就需要近37G显存
-
 资产已经放在仓库的 `assets/` 里（UIElements、PolyHaven 天空贴图、vMaterials_2/Ground/Asphalt_Fine.mdl），运行下面的命令无需再设置 `ISAAC_ASSET_ROOT` 或联网
 ```sh
 export OMNI_DATASTORE_ENABLED=0 && \
@@ -43,27 +41,32 @@ export OMNI_KIT_DISABLE_TELEMETRY=1 && \
 export OMNI_KIT_DISABLE_CRASH_REPORTING=1 && \
 export CARB_DISABLE_PYTHON_USDPREVIEW=1
 ```
+注意stage 0/1大约1024个env就需要近13G显存, 2048个env需要近23G显存，4096个env就需要近37G显存。黑盒角度来看，环境多于2048以后好像收益不明显,每个阶段训完的log应该整个目录都暂时更名放在了`assets/trained_policy`。
 
 ### Stage0 软碰撞
 ```bash
 CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=0 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.train \
   --task DiffLab-Quadcopter-CTBR-Racing-v0 --headless \
-  --num_envs 4096 --experiment_name racing_stage0 --run_name s0
+  --num_envs 2048 --experiment_name racing_stage0 --run_name s0
 ```
 ### Stage1 硬碰撞（可从 Stage0 恢复）
 ```bash
-CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=1 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.train \
-  --task DiffLab-Quadcopter-CTBR-Racing-v0 --headless --num_envs 4096 \
-  --experiment_name racing_stage1 --run_name s1 \
-  --resume True --load_run <stage0_run_dir> --checkpoint <ckpt.pt>
+CUDA_VISIBLE_DEVICES=5 TRAINING_STAGE=1 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.train \
+  --task DiffLab-Quadcopter-CTBR-Racing-v0 --headless --num_envs 2048 \
+  --experiment_name racing_stage0 --run_name s1 --resume True \
+  --load_run <stage0_run_dir> --checkpoint <ckpt.pt>
 ```
+举个例子: `--load_run 2025-12-15_17-07-17_s0 --checkpoint model_3999.pt`
+
 ### Stage2 环境下采集离线数据（用 Stage1 ckpt）
 ```sh
 CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=2 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.offline.data_collector \
   --task DiffLab-Quadcopter-CTBR-Racing-v0 --num_envs 8 --video_length 400 \
-  --experiment_name racing_stage1 --load_run <run_dir> --checkpoint <ckpt.pt> \
+  --experiment_name racing_stage0 --load_run <run_dir> --checkpoint <ckpt.pt> \
   --dataset racing_stage1.h5
 ```
+示例：`--load_run 2025-12-15_19-10-00_s1 --checkpoint model_5000.pt --dataset racing_stage1.h5`
+
 ### 离线微调辅助头
 ```sh
 CUDA_VISIBLE_DEVICES=7 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.offline.train \
@@ -71,6 +74,7 @@ CUDA_VISIBLE_DEVICES=7 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.offline.tra
   --policy_path logs/rsl_rl/racing_stage1/<run_dir>/checkpoints/<ckpt.pt> \
   --save_path logs/offline_finetune --epochs 5 --batch_size 256 --lr 3e-4
 ```
+示例：`--policy_path logs/rsl_rl/racing_stage1/2025-12-15_19-10-00_s1_from_s0/checkpoints/model_5000.pt`
 ### Stage2 评测/导出（可展示深度或导出 ONNX）
 ```sh
 CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=2 ${ISAACLAB_PATH}/isaaclab.sh -p -m standalone.rsl_rl.play \
@@ -78,6 +82,7 @@ CUDA_VISIBLE_DEVICES=7 TRAINING_STAGE=2 ${ISAACLAB_PATH}/isaaclab.sh -p -m stand
   --experiment_name racing_stage1 --load_run <run_dir> --checkpoint <ckpt.pt> \
   --video --video_length 400
 ```
+示例：`--load_run 2025-12-15_19-10-00_s1_from_s0 --checkpoint model_5000.pt --video_length 400`
 如需导出带辅助头的 ONNX，用 play_with_demo.py 加 --use_auxiliary_head。如需采集数据，先确保 `mkdir -p /data/racing_data`。
 
 ## 常见坑
