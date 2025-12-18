@@ -20,12 +20,12 @@
             "console": "integratedTerminal",
         },
         {
-            "name": "Python: train quadrotors rl (STAGE 0)",
+            "name": "train quadrotors rl (STAGE 0)",
             "type": "debugpy",
             "request": "launch",
             "args": [
                 "--task", "DiffLab-Quadcopter-CTBR-Racing-v0",
-                "--num_envs", "2048",
+                "--num_envs", "128",
                 "--headless",
                 "--max_iterations", "1000",
                 // "--deterministic",
